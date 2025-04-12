@@ -1,187 +1,135 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" class="logo" width="120"/>
 
-# Ship Monitoring System
-
-This project is a **Ship Monitoring System** that visualizes the movement and status of ships on a map. It uses HTML, CSS, JavaScript, and Python (as a server) to simulate real-time monitoring. The project is designed to run locally without requiring internet access.
+Berikut adalah template README.md yang menarik dan profesional untuk proyek Anda. Template ini dirancang agar terlihat bagus di GitHub dengan penggunaan elemen Markdown seperti header, tabel, dan gambar.
 
 ---
 
-## Project Structure
+# 🚢 Ship Monitoring System
 
-The folder structure of the project is as follows:
+**Ship Monitoring System** adalah aplikasi berbasis web untuk memantau pergerakan kapal secara real-time di peta interaktif. Proyek ini dirancang untuk berjalan **offline**, tanpa memerlukan koneksi internet, dengan tampilan modern dan responsif. Ideal untuk simulasi pelayaran atau monitoring sederhana.
+
+---
+
+## 📖 Fitur Utama
+
+- **Real-Time Monitoring**: Menampilkan posisi kapal secara dinamis di peta.
+- **Offline Mode**: Berjalan sepenuhnya tanpa koneksi internet.
+- **Informasi Lengkap Kapal**:
+    - Latitude dan Longitude
+    - Kecepatan (knots)
+    - Heading (arah)
+    - Status Aktif/Nonaktif
+- **Responsif**: Optimasi tampilan untuk desktop dan perangkat seluler.
+- **Customizable**: Mudah mengganti peta dan ikon kapal sesuai kebutuhan.
+
+---
+
+## 🛠️ Teknologi yang Digunakan
+
+- **Frontend**: HTML, CSS, JavaScript
+- **Backend**: Python (HTTP Server)
+- **Data Format**: JSON
+
+---
+
+## 📂 Struktur Proyek
 
 ```
 noint/
-├── index.html       # Main HTML file for the web interface
-├── map.osm          # OpenStreetMap data file (optional)
-├── map.png          # Background map image
-├── script.js        # JavaScript file for logic and interactivity
-├── ships-icon.png   # Icon representing ships on the map
-├── style.css        # CSS file for styling the web interface
+├── index.html       # File utama untuk antarmuka web
+├── map.osm          # Data OpenStreetMap (opsional)
+├── map.png          # Gambar peta sebagai latar belakang
+├── script.js        # Logika interaktif aplikasi
+├── ships-icon.png   # Ikon kapal
+├── style.css        # Gaya visual aplikasi
 ```
 
 ---
 
-## Features
+## 🚀 Cara Menjalankan
 
-1. **Real-Time Ship Monitoring**:
-    - Displays ship movement dynamically on a map.
-    - Updates ship information such as latitude, longitude, speed, heading, and status.
-2. **Offline Functionality**:
-    - Runs locally without requiring internet access.
-3. **Dynamic Status Handling**:
-    - Displays "Aktif" if data is received successfully.
-    - Displays "Nonaktif" if no data is received.
-4. **Responsive Design**:
-    - Optimized for desktop and mobile devices.
-5. **Customizable Map**:
-    - Uses `map.png` as the background map.
-    - You can replace `map.png` with your own map image.
+### Prasyarat
 
----
+1. **Python 3** harus terinstal di sistem Anda.
+2. Gunakan browser modern seperti Chrome atau Firefox.
 
-## Installation and Usage
+### Langkah-Langkah
 
-### Prerequisites
+1. **Clone Repository**:
 
-- Python 3 installed on your system.
-- A modern web browser (e.g., Chrome, Firefox).
-
-
-### Steps to Run the Project
-
-1. **Clone or Download the Repository**:
-Download or clone the `noint/` folder to your local machine.
-2. **Start Python Server**:
-Run the following Python script to start the server:
-
-```python
-import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
-
-ships_data = [
-    {
-        "id": "KAPAL-UJI-PPNS",
-        "lat": -7.54779,
-        "lon": 112.86757,
-        "speed": 12.5,
-        "heading": -185,
-        "status": "Aktif"
-    }
-]
-
-class ShipRequestHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/data':
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(json.dumps(ships_data).encode())
-        else:
-            self.send_response(404)
-            self.end_headers()
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
-
-def run_server():
-    server_address = ('', 8000)
-    httpd = HTTPServer(server_address, ShipRequestHandler)
-    print("Server berjalan di http://localhost:8000")
-    httpd.serve_forever()
-
-if __name__ == '__main__':
-    run_server()
+```bash
+git clone https://github.com/username/ship-monitoring-system.git
+cd ship-monitoring-system
 ```
 
-3. **Open `index.html` in Browser**:
-Open `index.html` in your browser to view the ship monitoring interface.
-4. **Simulate Ship Movement**:
-Modify the `ships_data` variable in the Python script to simulate different ship positions dynamically.
+2. **Jalankan Server Python**:
+Simpan kode berikut ke file `server.py` dan jalankan:
 
----
-
-## Customization
-
-### Map Image
-
-Replace `map.png` with your own map image by ensuring it fits within the defined bounds in `script.js`.
-
-### Ship Icon
-
-Replace `ships-icon.png` with your preferred ship icon image.
-
-### CSS Styling
-
-Modify `style.css` to customize colors, fonts, or layout.
-
----
-
-## How It Works
-
-1. **Python Server**:
-    - Serves ship data at `http://localhost:8000/data`.
-    - Updates ship positions dynamically every second.
-2. **JavaScript Logic**:
-    - Fetches ship data from the Python server using `fetch()` API.
-    - Updates ship markers and information on the map dynamically.
-3. **HTML Interface**:
-    - Displays ship information such as ID, latitude, longitude, speed, heading, and status.
-    - Provides visual feedback for active/inactive status.
-4. **CSS Styling**:
-    - Enhances user experience with modern design elements.
-    - Includes responsive layout for different screen sizes.
-
----
-
-## Troubleshooting
-
-### CORS Error
-
-If you encounter a CORS error when fetching data from the Python server, ensure that the server includes CORS headers:
-
-```python
-self.send_header("Access-Control-Allow-Origin", "*")
+```bash
+python server.py
 ```
 
-
-### No Data Received
-
-If no data is received:
-
-- Check if the Python server is running correctly.
-- Ensure that `ships_data` contains valid JSON data.
+Server akan berjalan di `http://localhost:8000`.
+3. **Buka Aplikasi Web**:
+Buka file `index.html` di browser Anda untuk melihat antarmuka monitoring kapal.
 
 ---
 
-## Future Improvements
+## 📊 API Endpoint
 
-1. Add support for multiple ships with unique markers.
-2. Integrate GPS data for real-world applications.
-3. Enhance map functionality using interactive elements like zoom and pan.
-
----
-
-## License
-
-This project is open-source and free to use for personal or educational purposes.
+| Endpoint | Method | Deskripsi |
+| :-- | :-- | :-- |
+| `/data` | GET | Mengambil data kapal terbaru |
+| `/` | GET | Informasi dasar server |
 
 ---
 
-## Screenshot Preview
+## 🖼️ Screenshot
 
-Below is an example screenshot of the project folder structure:
+### Tampilan Peta Kapal
 
-Project Folder Structure
+Ship Monitoring Map
 
-Enjoy monitoring your ships! 🚢
+### Informasi Kapal
 
-<div>⁂</div>
+Ship Information Panel
 
-[^1]: https://pplx-res.cloudinary.com/image/upload/v1744430604/user_uploads/QKPzyNlqtDkNToj/image.jpg
+---
+
+## ✨ Fitur Tambahan yang Akan Datang
+
+- Dukungan untuk banyak kapal dengan marker unik.
+- Integrasi data GPS untuk aplikasi dunia nyata.
+- Peta interaktif dengan zoom dan pan.
+- Riwayat perjalanan kapal.
+
+---
+
+## 🤝 Kontribusi
+
+Kontribusi sangat diterima! Silakan ikuti langkah berikut:
+
+1. Fork repository ini.
+2. Buat branch fitur baru (`git checkout -b fitur-baru`).
+3. Commit perubahan Anda (`git commit -m 'Menambahkan fitur baru'`).
+4. Push ke branch (`git push origin fitur-baru`).
+5. Buat Pull Request.
+
+---
+
+## 📄 Lisensi
+
+Proyek ini menggunakan lisensi MIT. Silakan gunakan dan modifikasi sesuai kebutuhan.
+
+---
+
+## 📧 Kontak
+
+Jika Anda memiliki pertanyaan atau saran, jangan ragu untuk menghubungi saya:
+
+- Email: [email@example.com](mailto:email@example.com)
+- GitHub: [username](https://github.com/username)
+
+---
+
+Dengan template ini, README.md Anda akan terlihat profesional dan menarik di GitHub! Anda dapat menambahkan gambar atau logo proyek jika diperlukan untuk memperkuat daya tarik visualnya. 😊
 
