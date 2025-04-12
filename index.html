@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Kapal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Sistem Monitoring Kapal</h1>
+        </header>
+        
+        <div id="map-container"></div>
+        
+        <div class="info-panel">
+            <div class="panel-header">
+                <h2>Informasi Kapal</h2>
+            </div>
+            
+            <div class="ship-info">
+                <div class="info-item">
+                    <div class="info-label">ID Kapal</div>
+                    <div class="info-value" id="ship-id">KAPAL-UJI-PPNS</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Latitude</div>
+                    <div class="info-value" id="ship-lat">-7.54779</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Longitude</div>
+                    <div class="info-value" id="ship-lon">112.86757</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Kecepatan</div>
+                    <div class="info-value" id="ship-speed">12.5 knot</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Arah</div>
+                    <div class="info-value" id="ship-heading">275°</div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-label">Status</div>
+                    <div class="info-value">
+                        <span class="status-indicator status-active"></span>
+                        <span id="ship-status">Aktif</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="btn btn-secondary">Riwayat Perjalanan</button>
+                <button class="btn btn-primary">Pantau Kapal</button>
+            </div>
+            
+            <div style="text-align: center; margin-top: 10px;">
+                <span class="update-time" id="update-time">Update Terakhir: 12:56 PM</span>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
