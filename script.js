@@ -1,16 +1,16 @@
 // Konstanta dan variabel global
-const MAP_WIDTH = 1000;  // Lebar peta dalam pixel
-const MAP_HEIGHT = 800;  // Tinggi peta dalam pixel
+const MAP_WIDTH = 1409;
+const MAP_HEIGHT = 799;
+const API_ENDPOINT = 'http://localhost:8000/api/destinations';
+const DESTINATIONS_ENDPOINT = 'http://localhost:8000/destinations';
 
-// Batas koordinat peta untuk area Surabaya (PPNS)
 const MAP_BOUNDS = {
-    north: -7.53779,  // Latitude atas
-    south: -7.57466,  // Latitude bawah
-    east: 112.89456,  // Longitude kanan
-    west: 112.83757   // Longitude kiri
+    north: -7.53300,
+    south: -7.58490,
+    east: 112.89456,
+    west: 112.83757
 };
 
-// Data kapal awal (akan diperbarui dari server)
 let ships = [
     {
         id: "KAPAL-UJI-PPNS",
@@ -22,146 +22,300 @@ let ships = [
     }
 ];
 
+let destinationMarker = null;
+let isMonitoring = false;
+let monitorInterval = null;
+
 // Elemen DOM
 const mapContainer = document.getElementById('map-container');
-const shipIdElement = document.getElementById('ship-id');
-const shipLatElement = document.getElementById('ship-lat');
-const shipLonElement = document.getElementById('ship-lon');
-const shipSpeedElement = document.getElementById('ship-speed');
-const shipHeadingElement = document.getElementById('ship-heading');
-const shipStatusElement = document.getElementById('ship-status');
+const shipElements = {
+    id: document.getElementById('ship-id'),
+    lat: document.getElementById('ship-lat'),
+    lon: document.getElementById('ship-lon'),
+    speed: document.getElementById('ship-speed'),
+    heading: document.getElementById('ship-heading'),
+    status: document.getElementById('ship-status')
+};
 const updateTimeElement = document.getElementById('update-time');
 
-// Fungsi untuk mengonversi koordinat geografis ke posisi pixel pada peta
-function geoToPixel(lat, lon) {
-    const x = ((lon - MAP_BOUNDS.west) / (MAP_BOUNDS.east - MAP_BOUNDS.west)) * MAP_WIDTH;
-    const y = ((MAP_BOUNDS.north - lat) / (MAP_BOUNDS.north - MAP_BOUNDS.south)) * MAP_HEIGHT;
-    return { x, y };
+// Fungsi utama
+function init() {
+    initMap();
+    fetchDestinations();
+    setupEventListeners();
+    startShipMonitoring();
 }
 
-// Fungsi untuk membuat marker kapal
+function initMap() {
+    mapContainer.innerHTML = '';
+    mapContainer.style.backgroundImage = 'url("map.png")';
+    
+    ships.forEach(createShipMarker);
+    if (ships.length > 0) updateShipInfo(ships[0]);
+}
+
+function setupEventListeners() {
+    mapContainer.addEventListener('click', handleMapClick);
+    document.getElementById('create-btn').addEventListener('click', showDestinationPopup);
+}
+
+function createDestinationMarker(lat, lon, name = "Lokasi Tujuan") {
+    // Create a div for the marker
+    const marker = document.createElement('div');
+    marker.className = 'destination-marker'; // Class for destination marker styling
+    
+    // Calculate pixel position based on latitude and longitude
+    const position = geoToPixel(lat, lon);
+    Object.assign(marker.style, {
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: 'translate(-50%, -50%)', // Center the marker
+        zIndex: 150 // Ensure it's above other elements
+    });
+
+    // Add event listener for showing popup
+    marker.addEventListener('click', (event) => {
+        event.stopPropagation(); // Prevent triggering map click
+        showDestinationPopup(lat, lon, name, marker);
+    });
+
+    // Add marker to the map container
+    mapContainer.appendChild(marker);
+    return marker;
+}
+
 function createShipMarker(ship) {
     const marker = document.createElement('div');
     marker.className = 'ship-marker';
     marker.id = `ship-${ship.id}`;
     
-    // Konversi posisi geografis ke pixel
     const position = geoToPixel(ship.lat, ship.lon);
-    
-    // Posisikan marker
-    marker.style.left = `${position.x}px`;
-    marker.style.top = `${position.y}px`;
-    
-    // Rotasi marker sesuai arah kapal
-    marker.style.transform = `rotate(${ship.heading}deg)`;
-    
-    // Tambahkan event listener untuk klik
-    marker.addEventListener('click', () => {
-        updateShipInfo(ship);
+    Object.assign(marker.style, {
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        transform: `rotate(${ship.heading}deg)`
     });
     
+    marker.addEventListener('click', () => updateShipInfo(ship));
+    mapContainer.appendChild(marker);
     return marker;
 }
+// Fungsi untuk kapal
+function startShipMonitoring() {
+    setInterval(async () => {
+        try {
+            const response = await fetch('http://localhost:8000/data');
+            const ships = await response.json();
+            
+            ships.forEach(ship => {
+                const marker = document.getElementById(`ship-${ship.id}`);
+                if (!marker) {
+                    createShipMarker(ship);
+                } else {
+                    updateShipPosition(ship, marker);
+                }
+            });
+        } catch (error) {
+            console.error('Gagal memperbarui posisi kapal:', error);
+        }
+    }, 1000);
+}
 
-// Fungsi untuk memperbarui info kapal
+// Fungsi update posisi kapal
+function updateShipPosition(ship, marker) {
+    const position = geoToPixel(ship.lat, ship.lon);
+    
+    // Animasi smooth menggunakan CSS transition
+    marker.style.transition = 'all 1s ease-out';
+    marker.style.left = `${position.x}px`;
+    marker.style.top = `${position.y}px`;
+    marker.style.transform = `rotate(${ship.heading}deg)`;
+    
+    // Update informasi kapal jika sedang aktif
+    if (ship.id === "KAPAL-UJI-PPNS") {
+        updateShipInfo(ship);
+    }
+}
 function updateShipInfo(ship) {
-    shipIdElement.textContent = ship.id;
-    shipLatElement.textContent = ship.lat.toFixed(6);
-    shipLonElement.textContent = ship.lon.toFixed(6);
-    shipSpeedElement.textContent = ship.speed;
-    
-    const adjustedHeading = (ship.heading - 90) % 360;
-    shipHeadingElement.textContent = adjustedHeading < 0 ? adjustedHeading + 360 : adjustedHeading;
-    
-    shipStatusElement.textContent = ship.status;
+    Object.entries(shipElements).forEach(([key, element]) => {
+        if (key === 'heading') {
+            const adjusted = (ship.heading - 90) % 360;
+            element.textContent = adjusted < 0 ? adjusted + 360 : adjusted;
+        } else {
+            element.textContent = ship[key];
+        }
+    });
     updateTimeElement.textContent = new Date().toLocaleTimeString();
 }
 
-// Fungsi untuk memperbarui posisi kapal
-function updateShipPosition(ship) {
-    const marker = document.getElementById(`ship-${ship.id}`);
-    if (marker) {
-        const position = geoToPixel(ship.lat, ship.lon);
-        marker.style.left = `${position.x}px`;
-        marker.style.top = `${position.y}px`;
-        
-        marker.style.transform = `rotate(${ship.heading}deg)`;
-    }
-}
-
-// Fungsi untuk mendapatkan data kapal dari server Python lokal
-async function fetchShipData() {
-    try {
-        const response = await fetch('http://localhost:8000/data'); // URL server Python Anda
-        
-        if (response.ok) {
-            const data = await response.json();
-            
-            ships = data; // Update data kapal
-            
-            ships.forEach(ship => {
-                const existingMarker = document.getElementById(`ship-${ship.id}`);
-                if (!existingMarker) {
-                    const marker = createShipMarker(ship);
-                    mapContainer.appendChild(marker);
-                } else {
-                    updateShipPosition(ship);
-                }
-            });
-            
-            if (ships.length > 0) {
-                updateShipInfo(ships[0]);
-            }
-            
-            // Set status kembali ke Aktif jika data diterima
-            shipStatusElement.textContent = "Aktif";
-            shipStatusElement.classList.remove("status-inactive");
-            shipStatusElement.classList.add("status-active");
-            
-        } else {
-            throw new Error("Server memberikan respons yang tidak valid.");
-        }
-        
-    } catch (error) {
-        console.error('Gagal mengambil data kapal:', error);
-        
-        // Set status ke Nonaktif jika gagal mengambil data
-        shipStatusElement.textContent = "Nonaktif";
-        shipStatusElement.classList.remove("status-active");
-        shipStatusElement.classList.add("status-inactive");
-        
-        updateTimeElement.textContent = "Tidak ada pembaruan";
-        
-        // Kosongkan informasi kapal jika tidak ada data yang diterima
-        shipIdElement.textContent = "--";
-        shipLatElement.textContent = "--";
-        shipLonElement.textContent = "--";
-        shipSpeedElement.textContent = "--";
-        shipHeadingElement.textContent = "--";
-    }
-}
-
-// Inisialisasi peta dan marker
-function initMap() {
-    mapContainer.innerHTML = '';
+// Fungsi untuk tujuan
+function showDestinationPopup(lat, lon, name, markerElement) {
+    // Remove any existing popups
+    const existingPopup = document.querySelector('.destination-popup');
+    if (existingPopup) existingPopup.remove();
     
-    mapContainer.style.backgroundImage = 'url("map.png")';
+    // Create popup element
+    const popup = document.createElement('div');
+    popup.className = 'destination-popup';
     
-    ships.forEach(ship => {
-        const marker = createShipMarker(ship);
-        mapContainer.appendChild(marker);
+    // Add content to popup
+    popup.innerHTML = `
+        <h3>${name}</h3>
+        <p>Latitude: ${parseFloat(lat).toFixed(6)}</p>
+        <p>Longitude: ${parseFloat(lon).toFixed(6)}</p>
+        <button id="set-destination-btn">Set Destination</button>
+        <button id="close-popup-btn">Tutup</button>
+    `;
+    
+    // Position the popup above the marker
+    const markerRect = markerElement.getBoundingClientRect();
+    const mapRect = mapContainer.getBoundingClientRect();
+    
+    popup.style.left = `${markerRect.left - mapRect.left}px`;
+    popup.style.top = `${markerRect.top - mapRect.top - 120}px`; // Position above marker
+    
+    // Add popup to map
+    mapContainer.appendChild(popup);
+    
+    // Add event listeners for buttons
+    document.getElementById('set-destination-btn').addEventListener('click', () => {
+        setDestination(lat, lon, name);
+        popup.remove();
     });
     
-    if (ships.length > 0) {
-        updateShipInfo(ships[0]);
+    document.getElementById('close-popup-btn').addEventListener('click', () => {
+        popup.remove();
+    });
+    
+    // Prevent clicks on popup from triggering map click
+    popup.addEventListener('click', (event) => {
+        event.stopPropagation();
+    });
+}
+
+function setDestination(lat, lon, name) {
+    // Implement destination setting logic
+    console.log(`Setting destination to: ${name} (${parseFloat(lat).toFixed(6)}, ${parseFloat(lon).toFixed(6)})`);
+    
+    try {
+        sendDestinationToAPI(lat, lon, name);
+        alert(`Destinasi diatur ke: ${name}`);
+    } catch (error) {
+        handleOfflineDestination(lat, lon, name, error);
     }
 }
 
-// Inisialisasi aplikasi
-function init() {
-    initMap();
+async function handleMapClick(event) {
+    // Only process direct clicks on the map (not on existing markers or popups)
+    if (event.target !== mapContainer) return;
     
-    setInterval(fetchShipData, 1000); // Perbarui data setiap detik
+    const {lat, lon} = getClickedCoordinates(event);
+    const name = prompt("Masukkan nama lokasi tujuan:", "Lokasi Tujuan");
+    if (!name) return;
+
+    try {
+       createDestinationMarker(lat, lon, name);
+        
+        await sendDestinationToAPI(lat, lon, name);
+        console.log('Lokasi tujuan berhasil disimpan!');
+    } catch (error) {
+        handleOfflineDestination(lat, lon, name, error);
+    }
 }
 
+// Fungsi utilitas
+function geoToPixel(lat, lon) {
+    return {
+        x: ((lon - MAP_BOUNDS.west) / (MAP_BOUNDS.east - MAP_BOUNDS.west)) * MAP_WIDTH,
+        y: ((MAP_BOUNDS.north - lat) / (MAP_BOUNDS.north - MAP_BOUNDS.south)) * MAP_HEIGHT
+    };
+}
+
+function getClickedCoordinates(event) {
+    const rect = mapContainer.getBoundingClientRect();
+    return {
+        lat: MAP_BOUNDS.north - ((event.clientY - rect.top) / MAP_HEIGHT) * (MAP_BOUNDS.north - MAP_BOUNDS.south),
+        lon: MAP_BOUNDS.west + ((event.clientX - rect.left) / MAP_WIDTH) * (MAP_BOUNDS.east - MAP_BOUNDS.west)
+    };
+}
+
+// API handling
+async function fetchDestinations() {
+    try {
+        const response = await fetch(DESTINATIONS_ENDPOINT);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch destinations: ${response.status}`);
+        }
+
+        const destinations = await response.json();
+
+        // Clear existing destination markers
+        const existingMarkers = document.querySelectorAll('.destination-marker');
+        existingMarkers.forEach(marker => marker.remove());
+
+        if (!Array.isArray(destinations)) {
+            console.error('Destinations is not an array:', destinations);
+            return;
+        }
+
+        // Create markers for each destination
+        destinations.forEach(dest => {
+            if (dest.latitude && dest.longitude && dest.name) {
+                createDestinationMarker(dest.latitude, dest.longitude, dest.name);
+            } else if (dest.lat && dest.lon && dest.name) {
+                createDestinationMarker(dest.lat, dest.lon, dest.name);
+            } else {
+                console.warn('Invalid destination data:', dest);
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching destinations:', error);
+        loadSavedDestinations(); // Fallback to local storage
+    }
+}
+
+
+async function sendDestinationToAPI(lat, lon, name) {
+    const response = await fetch(API_ENDPOINT, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            name,
+            latitude: lat,
+            longitude: lon,
+            timestamp: new Date().toISOString()
+        })
+    });
+
+    if (!response.ok) throw new Error(await response.text());
+    return response.json();
+}
+
+function handleOfflineDestination(lat, lon, name, error) {
+    console.error('Error:', error);
+    const destinations = JSON.parse(localStorage.getItem('destinations') || '[]');
+    destinations.push({lat, lon, name, timestamp: new Date().toISOString()});
+    localStorage.setItem('destinations', JSON.stringify(destinations));
+
+    const retryInterval = setInterval(async () => {
+        try {
+            await sendDestinationToAPI(lat, lon, name);
+            clearInterval(retryInterval);
+        } catch (err) {
+            console.log('Gagal mengirim ulang...');
+        }
+    }, 10000);
+
+    alert('Lokasi disimpan sementara. Akan dikirim otomatis saat online.');
+}
+
+function loadSavedDestinations() {
+    const destinations = JSON.parse(localStorage.getItem('destinations') || '[]');
+    destinations.forEach(dest => {
+        const marker = createDestinationMarker(dest.lat, dest.lon, dest.name);
+        mapContainer.appendChild(marker);
+    });
+}
+
+// Inisialisasi
 window.addEventListener('load', init);

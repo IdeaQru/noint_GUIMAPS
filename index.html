@@ -53,18 +53,21 @@
                     </div>
                 </div>
             </div>
-            
+            <div id="csv-status" class="status-info"></div>
+
             <div class="action-buttons">
-                <button class="btn btn-secondary">Riwayat Perjalanan</button>
-                <button class="btn btn-primary">Pantau Kapal</button>
+                <button class="btn btn-secondary" id="history-btn">Riwayat Perjalanan</button>
+                <button class="btn btn-primary" id="monitor-btn">Mulai Pantau</button>
+                <button class="btn btn-primary" id="create-btn">Buat Lokasi Tujuan</button>
             </div>
             
             <div style="text-align: center; margin-top: 10px;">
-                <span class="update-time" id="update-time">Update Terakhir: 12:56 PM</span>
+                <span class="update-time" id="update-time">Update Terakhir: -</span>
             </div>
         </div>
     </div>
     
     <script src="script.js"></script>
+    <script src="csv.js"></script>
 </body>
 </html>

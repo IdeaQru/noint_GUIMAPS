@@ -54,7 +54,24 @@ h1 {
 #map-container:hover {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
 }
+.destination-marker {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    margin-left: -14px;
+    margin-top: -14px;
+    background-image: url('helm.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    z-index: 150;
+    cursor: pointer;
+    filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
+    transition: transform 0.2s ease, filter 0.3s ease;
+}
 
+.destination-marker:hover {
+    transform: scale(1.2); /* Slightly enlarge on hover */
+}
 /* Enhanced Ship Marker */
 .ship-marker {
     position: absolute;
@@ -223,9 +240,9 @@ h1 {
     }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1408px) {
     #map-container {
-        height: 400px;
+        height: 799px;
     }
     
     .ship-info {
@@ -253,4 +270,9 @@ h1 {
     h1 {
         font-size: 20px;
     }
+ 
+    
+
+
+    
 }
