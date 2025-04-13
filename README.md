@@ -1,7 +1,5 @@
 
-Berikut adalah template README.md yang menarik dan profesional untuk proyek Anda. Template ini dirancang agar terlihat bagus di GitHub dengan penggunaan elemen Markdown seperti header, tabel, dan gambar.
 
----
 
 # 🚢 Ship Monitoring System
 
