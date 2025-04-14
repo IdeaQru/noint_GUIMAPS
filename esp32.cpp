@@ -1,122 +1,173 @@
 #include <WiFi.h>
-#include <SPIFFS.h>
-#include <ESPAsyncWebServer.h>
 #include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
 #include <ArduinoJson.h>
 
-// Konfigurasi WiFi Access Point
-const char* ssid = "KapalMonitor";
-const char* password = "12345678";
+// Konfigurasi WiFi
+const char* ssid = "Your_SSID";
+const char* password = "Your_PASSWORD";
 
-// Data kapal (akan diperbarui melalui HTTP POST)
-struct ShipData {
-  String id = "KAPAL-UJI-PPNS";
-  float lat = -7.54779;
-  float lon = 112.86757;
-  float speed = 12.5;
-  float heading = -90; // Heading sudah disesuaikan +90
-  String status = "Aktif";
-} shipData;
+// Data Kapal
+struct Ship {
+  String id;
+  float lat;
+  float lon;
+  float speed;
+  float heading;
+  String status;
+};
 
-// Buat server web pada port 80
+Ship ship = {
+  "KAPAL-UJI-PPNS",
+  -7.54779,
+  112.86757,
+  12.5,
+  -185.0,
+  "Aktif"
+};
+
+// Data Tujuan
+std::vector<DynamicJsonDocument> destinations;
+const size_t MAX_DESTINATIONS = 10;
+
+// Mutex untuk proteksi data
+SemaphoreHandle_t xMutex;
+
+// Web Server
 AsyncWebServer server(80);
+
+// Simulasi Pergerakan Kapal
+void simulateShipMovement(void * parameter) {
+  const float NORTH = -7.53300;
+  const float SOUTH = -7.58490;
+  const float EAST = 112.90890;
+  const float WEST = 112.79938;
+
+  while(1) {
+    if(xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      // Update heading dan speed
+      ship.heading += random(-50, 50)/10.0;
+      if(ship.heading > 360) ship.heading -= 360;
+      if(ship.heading < 0) ship.heading += 360;
+      
+      ship.speed += random(-5, 5)/10.0;
+      ship.speed = constrain(ship.speed, 5.0, 20.0);
+
+      // Hitung posisi baru
+      float heading_rad = radians(ship.heading - 90);
+      float move_factor = ship.speed * 0.00001;
+      
+      float new_lat = ship.lat + move_factor * sin(heading_rad);
+      float new_lon = ship.lon + move_factor * cos(heading_rad);
+
+      // Boundary check
+      if(new_lat <= NORTH && new_lat >= SOUTH && 
+         new_lon <= EAST && new_lon >= WEST) {
+        ship.lat = new_lat;
+        ship.lon = new_lon;
+      } else {
+        ship.heading = fmod(ship.heading + 180.0, 360.0);
+      }
+      
+      xSemaphoreGive(xMutex);
+    }
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
 
 void setup() {
   Serial.begin(115200);
-
-  // Inisialisasi SPIFFS
-  if (!SPIFFS.begin(true)) {
-    Serial.println("Gagal me-mount SPIFFS");
-    return;
+  xMutex = xSemaphoreCreateMutex();
+  
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  while(WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
   }
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 
-  // Tampilkan file yang ada di SPIFFS
-  Serial.println("File SPIFFS:");
-  File root = SPIFFS.open("/");
-  File file = root.openNextFile();
-  while (file) {
-    Serial.print(" - ");
-    Serial.println(file.name());
-    file = root.openNextFile();
-  }
-
-  // Atur WiFi sebagai Access Point
-  WiFi.softAP(ssid, password);
-  IPAddress IP = WiFi.softAPIP();
-  Serial.print("AP IP address: ");
-  Serial.println(IP);
-
-  // Rute untuk file statis dari SPIFFS
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/index.html", "text/html");
-  });
-
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/style.css", "text/css");
-  });
-
-  server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/script.js", "application/javascript");
-  });
-
-  server.on("/map.png", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/map.png", "image/png");
-  });
-
-  server.on("/ships-icon.png", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/ships-icon.png", "image/png");
-  });
-
-  server.on("/map.osm", HTTP_GET, [](AsyncWebServerRequest *request) {
-    request->send(SPIFFS, "/map.osm", "application/xml");
-  });
-
-  // API endpoint untuk mendapatkan data kapal
-  server.on("/api/ships", HTTP_GET, [](AsyncWebServerRequest *request) {
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-
-    DynamicJsonDocument doc(1024);
-    JsonArray array = doc.to<JsonArray>();
-
-    JsonObject ship = array.createNestedObject();
-    ship["id"] = shipData.id;
-    ship["lat"] = shipData.lat;
-    ship["lon"] = shipData.lon;
-    ship["speed"] = shipData.speed;
-    ship["heading"] = shipData.heading;
-    ship["status"] = shipData.status;
-
-    serializeJson(doc, *response);
-    request->send(response);
-  });
-
-  // API endpoint untuk memperbarui data kapal
-  server.on("/api/update", HTTP_POST, [](AsyncWebServerRequest *request) {
-    DynamicJsonDocument doc(1024);
-    
-    String body;
-    if (request->hasParam("body", true)) {
-      body = request->getParam("body", true)->value();
-      deserializeJson(doc, body);
-
-      if (doc.containsKey("id")) shipData.id = doc["id"].as<String>();
-      if (doc.containsKey("lat")) shipData.lat = doc["lat"];
-      if (doc.containsKey("lon")) shipData.lon = doc["lon"];
-      if (doc.containsKey("speed")) shipData.speed = doc["speed"];
-      if (doc.containsKey("heading")) shipData.heading = doc["heading"];
-      if (doc.containsKey("status")) shipData.status = doc["status"].as<String>();
+  // Configure Web Server
+  server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request){
+    if(xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      StaticJsonDocument<200> doc;
+      doc["id"] = ship.id;
+      doc["lat"] = ship.lat;
+      doc["lon"] = ship.lon;
+      doc["speed"] = ship.speed;
+      doc["heading"] = ship.heading;
+      doc["status"] = ship.status;
       
-      request->send(200, "application/json", "{\"message\":\"Data updated\"}");
-      Serial.println("Data kapal diperbarui!");
-      return;
+      String response;
+      serializeJson(doc, response);
+      
+      AsyncWebServerResponse *resp = request->beginResponse(200, "application/json", response);
+      resp->addHeader("Access-Control-Allow-Origin", "*");
+      request->send(resp);
+      
+      xSemaphoreGive(xMutex);
     }
-
-    request->send(400, "application/json", "{\"error\":\"Invalid data\"}");
   });
 
-  // Mulai server
+  server.on("/destinations", HTTP_GET, [](AsyncWebServerRequest *request){
+    if(xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      DynamicJsonDocument doc(1024);
+      JsonArray arr = doc.to<JsonArray>();
+      
+      for(auto& dest : destinations) {
+        arr.add(dest);
+      }
+      
+      String response;
+      serializeJson(doc, response);
+      
+      AsyncWebServerResponse *resp = request->beginResponse(200, "application/json", response);
+      resp->addHeader("Access-Control-Allow-Origin", "*");
+      request->send(resp);
+      
+      xSemaphoreGive(xMutex);
+    }
+  });
+
+  server.on("/destinations", HTTP_POST, [](AsyncWebServerRequest *request){
+    // Handle POST request
+  }, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
+    if(xSemaphoreTake(xMutex, portMAX_DELAY) == pdTRUE) {
+      DynamicJsonDocument doc(256);
+      deserializeJson(doc, data, len);
+      
+      if(destinations.size() < MAX_DESTINATIONS) {
+        destinations.push_back(doc);
+      }
+      
+      xSemaphoreGive(xMutex);
+    }
+    
+    AsyncWebServerResponse *resp = request->beginResponse(200, "application/json", "{\"status\":\"ok\"}");
+    resp->addHeader("Access-Control-Allow-Origin", "*");
+    request->send(resp);
+  });
+
+  server.onNotFound([](AsyncWebServerRequest *request){
+    request->send(404, "text/plain", "Not found");
+  });
+
+  // Start server
   server.begin();
+
+  // Start simulation task
+  xTaskCreate(
+    simulateShipMovement,   // Function
+    "Ship Simulation",      // Name
+    4096,                   // Stack size
+    NULL,                   // Parameters
+    1,                      // Priority
+    NULL                    // Task handle
+  );
 }
 
 void loop() {
+  // Empty - menggunakan FreeRTOS tasks
 }
